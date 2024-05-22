@@ -13,12 +13,21 @@ sap.ui.define([
 	return Controller.extend("sap.ui.core.tutorial.odatav4.controller.App", {
 
 		onInit : function () {
-			var oJSONData = {
-				busy : false,
-				order: 0
-			};
-			var oModel = new JSONModel(oJSONData);
-			this.getView().setModel(oModel, "appView");
+			var oMessageManager = sap.ui.getCore().getMessageManager(),
+				oMessageModel = oMessageManager.getMessageModel(),
+				oMessageModelBinding = oMessageModel.bindList("/", undefined, [],
+					new Filter("technical", FilterOperator.EQ, true)),
+				oViewModel = new JSONModel({
+					busy : false,
+					hasUIChanges : false,
+					usernameEmpty : true,
+					order : 0
+				});
+			this.getView().setModel(oViewModel, "appView");
+			this.getView().setModel(oMessageModel, "message");
+
+			oMessageModelBinding.attachChange(this.onMessageBindingChange, this);
+			this._bTechnicalErrors = false;
 		},
 
 		onRefresh : function () {
@@ -31,39 +40,56 @@ sap.ui.define([
 			oBinding.refresh();
 			MessageToast.show(this._getText("refreshSuccessMessage"));
 		},
-		// onSearch: function () {
-		// 	var oView = this.getView(),
-		// 		oLastNameField = oView.byId("lastNameField"),
-		// 		oFirstNameField = oView.byId("firstNameField"),
-		// 		oAgeField = oView.byId("ageField"),
-		// 		oUsernameField = oView.byId("usernameField"),
-		// 		sLastName = oLastNameField ? oLastNameField.getValue() : "",
-		// 		sFirstName = oFirstNameField ? oFirstNameField.getValue() : "",
-		// 		sAge = oAgeField ? oAgeField.getValue() : "",
-		// 		sUsername = oUsernameField ? oUsernameField.getValue() : "";
-		
-		// 	var aFilters = [];
-		
-		// 	if (sLastName) {
-		// 		aFilters.push(new Filter("LastName", FilterOperator.Contains, sLastName));
-		// 	}
-		// 	if (sFirstName) {
-		// 		aFilters.push(new Filter("FirstName", FilterOperator.Contains, sFirstName));
-		// 	}
-		// 	if (sAge) {
-		// 		aFilters.push(new Filter("Age", FilterOperator.EQ, parseInt(sAge)));
-		// 	}
-		// 	if (sUsername) {
-		// 		aFilters.push(new Filter("UserName", FilterOperator.Contains, sUsername));
-		// 	}
-		
-		// 	var oCombinedFilter = new Filter({
-		// 		filters: aFilters,
-		// 		and: true
-		// 	});
-		
-		// 	oView.byId("peopleList").getBinding("items").filter(oCombinedFilter, FilterType.Application);
-		// },
+		onSave : function () {
+			var fnSuccess = function () {
+				this._setBusy(false);
+				MessageToast.show(this._getText("changesSentMessage"));
+				this._setUIChanges(false);
+			}.bind(this);
+
+			var fnError = function (oError) {
+				this._setBusy(false);
+				this._setUIChanges(false);
+				MessageBox.error(oError.message);
+			}.bind(this);
+
+			this._setBusy(true); // Lock UI until submitBatch is resolved.
+			this.getView().getModel().submitBatch("peopleGroup").then(fnSuccess, fnError);
+			this._bTechnicalErrors = false; // If there were technical errors, a new save resets them.
+		},
+		onCreate : function () {
+			var oList = this.byId("peopleList"),
+				oBinding = oList.getBinding("items"),
+				oContext = oBinding.create({
+					"UserName" : "",
+					"FirstName" : "",
+					"LastName" : "",
+					"Age" : ""
+				});
+
+			this._setUIChanges();
+			this.getView().getModel("appView").setProperty("/usernameEmpty", true);
+
+			oList.getItems().some(function (oItem) {
+				if (oItem.getBindingContext() === oContext) {
+					oItem.focus();
+					oItem.setSelected(true);
+					return true;
+				}
+			});
+		},
+
+		onInputChange : function (oEvt) {
+			if (oEvt.getParameter("escPressed")) {
+				this._setUIChanges();
+			} else {
+				this._setUIChanges(true);
+				if (oEvt.getSource().getParent().getBindingContext().getProperty("UserName")) {
+					this.getView().getModel("appView").setProperty("/usernameEmpty", false);
+				}
+			}
+		},
+
 		onSearch : function () {
 			var oView = this.getView(),
 				sValue = oView.byId("searchField").getValue(),
@@ -72,31 +98,13 @@ sap.ui.define([
 			oView.byId("peopleList").getBinding("items").filter(oFilter, FilterType.Application);
 		},
 
-		// onSort: function() {
-		// 	var oView = this.getView(),
-		// 		sLastNameSortOrder = oView.getModel("appView").getProperty("/lastNameOrder"),
-		// 		sFirstNameSortOrder = oView.getModel("appView").getProperty("/firstNameOrder"),
-		// 		sAgeSortOrder = oView.getModel("appView").getProperty("/ageOrder"),
-		// 		sUsernameSortOrder = oView.getModel("appView").getProperty("/usernameOrder");
-		
-		// 	var aSorters = [];
-		
-		// 	if (sLastNameSortOrder) {
-		// 		aSorters.push(new Sorter("LastName", sLastNameSortOrder === "desc"));
-		// 	}
-		// 	if (sFirstNameSortOrder) {
-		// 		aSorters.push(new Sorter("FirstName", sFirstNameSortOrder === "desc"));
-		// 	}
-		// 	if (sAgeSortOrder) {
-		// 		aSorters.push(new Sorter("Age", sAgeSortOrder === "desc"));
-		// 	}
-		// 	if (sUsernameSortOrder) {
-		// 		aSorters.push(new Sorter("UserName", sUsernameSortOrder === "desc"));
-		// 	}
-		
-		// 	oView.byId("peopleList").getBinding("items").sort(aSorters);
-		// },
+		onResetChanges : function () {
+			this.byId("peopleList").getBinding("items").resetChanges();
+			this._bTechnicalErrors = false; 
+			this._setUIChanges();
+		},
 
+		
 		onSort : function () {
 			var oView = this.getView(),
 				aStates = [undefined, "asc", "desc"],
@@ -114,10 +122,54 @@ sap.ui.define([
 			MessageToast.show(sMessage);
 			},
 
+			onMessageBindingChange : function (oEvent) {
+				var aContexts = oEvent.getSource().getContexts(),
+					aMessages,
+					bMessageOpen = false;
+	
+				if (bMessageOpen || !aContexts.length) {
+					return;
+				}
+	
+				// Extract and remove the technical messages
+				aMessages = aContexts.map(function (oContext) {
+					return oContext.getObject();
+				});
+				sap.ui.getCore().getMessageManager().removeMessages(aMessages);
+	
+				this._setUIChanges(true);
+				this._bTechnicalErrors = true;
+				MessageBox.error(aMessages[0].message, {
+					id : "serviceErrorMessageBox",
+					onClose : function () {
+						bMessageOpen = false;
+					}
+				});
+	
+				bMessageOpen = true;
+			},
+
 
 		_getText : function (sTextId, aArgs) {
 			return this.getOwnerComponent().getModel("i18n").getResourceBundle().getText(sTextId, aArgs);
 
+		},
+
+		_setUIChanges : function (bHasUIChanges) {
+			if (this._bTechnicalErrors) {
+				// If there is currently a technical error, then force 'true'.
+				bHasUIChanges = true;
+			} else if (bHasUIChanges === undefined) {
+				bHasUIChanges = this.getView().getModel().hasPendingChanges();
+			}
+			var oModel = this.getView().getModel("appView");
+			oModel.setProperty("/hasUIChanges", bHasUIChanges);
+		},
+		_setBusy : function (bIsBusy) {
+			var oModel = this.getView().getModel("appView");
+			oModel.setProperty("/busy", bIsBusy);
 		}
 	});
+
+
 });
