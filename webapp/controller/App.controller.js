@@ -79,26 +79,31 @@ sap.ui.define([
 			});
 		},
 		onDelete : function () {
-		    var oContext,
-		        oSelected = this.byId("peopleList").getSelectedItem(),
-		        sUserName;
+            var oContext,
+                oPeopleList = this.byId("peopleList"),
+                oSelected = oPeopleList.getSelectedItem(),
+                sUserName;
  
-		    if (oSelected) {
-		        oContext = oSelected.getBindingContext();
-		        sUserName = oContext.getProperty("UserName");
-		        oContext.delete().then(function () {
-		            MessageToast.show(this._getText("deletionSuccessMessage", sUserName));
-		        }.bind(this), function (oError) {
-		            this._setUIChanges();
-		            if (oError.canceled) {
-		                MessageToast.show(this._getText("deletionRestoredMessage", sUserName));
-		                return;
-		            }
-		            MessageBox.error(oError.message + ": " + sUserName);
-		        }.bind(this));
-		        this._setUIChanges(true);
-		    }
-		},
+            if (oSelected) {
+                oContext = oSelected.getBindingContext();
+                sUserName = oContext.getProperty("UserName");
+                oContext.delete().then(function () {
+                    MessageToast.show(this._getText("deletionSuccessMessage", sUserName));
+                }.bind(this), function (oError) {
+                    if (oContext === oPeopleList.getSelectedItem().getBindingContext()) {
+                        this._setDetailArea(oContext);
+                    }
+                    this._setUIChanges();
+                    if (oError.canceled) {
+                        MessageToast.show(this._getText("deletionRestoredMessage", sUserName));
+                        return;
+                    }
+                    MessageBox.error(oError.message + ": " + sUserName);
+                }.bind(this));
+                this._setDetailArea();
+                this._setUIChanges(true);
+            }
+        },
 
 		onInputChange : function (oEvt) {
 			if (oEvt.getParameter("escPressed")) {
@@ -183,6 +188,10 @@ sap.ui.define([
 				bMessageOpen = true;
 			},
 
+			onSelectionChange : function (oEvent) {
+				this._setDetailArea(oEvent.getParameter("listItem").getBindingContext());
+			},
+
 
 		_getText : function (sTextId, aArgs) {
 			return this.getOwnerComponent().getModel("i18n").getResourceBundle().getText(sTextId, aArgs);
@@ -202,7 +211,25 @@ sap.ui.define([
 		_setBusy : function (bIsBusy) {
 			var oModel = this.getView().getModel("appView");
 			oModel.setProperty("/busy", bIsBusy);
-		}
+		},
+
+		 /**
+         * Toggles the visibility of the detail area
+         *
+         * @param {object} [oUserContext] - the current user context
+         */
+		 _setDetailArea : function (oUserContext) {
+            var oDetailArea = this.byId("detailArea"),
+                oLayout = this.byId("defaultLayout"),
+                oSearchField = this.byId("searchField");
+ 
+            oDetailArea.setBindingContext(oUserContext || null);
+            // resize view
+            oDetailArea.setVisible(!!oUserContext);
+            oLayout.setSize(oUserContext ? "60%" : "100%");
+            oLayout.setResizable(!!oUserContext);
+            oSearchField.setWidth(oUserContext ? "40%" : "20%");
+        }
 	});
 
 
