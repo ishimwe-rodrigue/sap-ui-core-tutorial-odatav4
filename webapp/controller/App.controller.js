@@ -13,9 +13,9 @@ sap.ui.define([
 	return Controller.extend("sap.ui.core.tutorial.odatav4.controller.App", {
 
 		onInit : function () {
-			var oMessageManager = sap.ui.getCore().getMessageManager(),
-				oMessageModel = oMessageManager.getMessageModel(),
-				oMessageModelBinding = oMessageModel.bindList("/", undefined, [],
+			const oMessageManager = sap.ui.getCore().getMessageManager();
+			const oMessageModel = oMessageManager.getMessageModel();
+			const oMessageModelBinding = oMessageModel.bindList("/", undefined, [],
 					new Filter("technical", FilterOperator.EQ, true)),
 				oViewModel = new JSONModel({
 					busy : false,
@@ -31,7 +31,7 @@ sap.ui.define([
 		},
 
 		onRefresh : function () {
-			var oBinding = this.byId("peopleList").getBinding("items");
+			const oBinding = this.byId("peopleList").getBinding("items");
 
 			if (oBinding.hasPendingChanges()) {
 				MessageBox.error(this._getText("refreshNotPossibleMessage"));
@@ -41,13 +41,13 @@ sap.ui.define([
 			MessageToast.show(this._getText("refreshSuccessMessage"));
 		},
 		onSave : function () {
-			var fnSuccess = function () {
+			const fnSuccess = function () {
 				this._setBusy(false);
 				MessageToast.show(this._getText("changesSentMessage"));
 				this._setUIChanges(false);
 			}.bind(this);
 
-			var fnError = function (oError) {
+			const fnError = function (oError) {
 				this._setBusy(false);
 				this._setUIChanges(false);
 				MessageBox.error(oError.message);
@@ -58,9 +58,9 @@ sap.ui.define([
 			this._bTechnicalErrors = false; // If there were technical errors, a new save resets them.
 		},
 		onCreate : function () {
-			var oList = this.byId("peopleList"),
-				oBinding = oList.getBinding("items"),
-				oContext = oBinding.create({
+			const oList = this.byId("peopleList");
+			const oBinding = oList.getBinding("items");
+			const oContext = oBinding.create({
 					"UserName" : "",
 					"FirstName" : "",
 					"LastName" : "",
@@ -79,14 +79,14 @@ sap.ui.define([
 			});
 		},
 		onDelete : function () {
-            var oContext,
-                oPeopleList = this.byId("peopleList"),
-                oSelected = oPeopleList.getSelectedItem(),
-                sUserName;
+           
+              const  oPeopleList = this.byId("peopleList");
+              const  oSelected = oPeopleList.getSelectedItem();
+                
  
             if (oSelected) {
-                oContext = oSelected.getBindingContext();
-                sUserName = oContext.getProperty("UserName");
+              const  oContext = oSelected.getBindingContext();
+              const  sUserName = oContext.getProperty("UserName");
                 oContext.delete().then(function () {
                     MessageToast.show(this._getText("deletionSuccessMessage", sUserName));
                 }.bind(this), function (oError) {
@@ -117,9 +117,9 @@ sap.ui.define([
 		},
 
 		onSearch : function () {
-			var oView = this.getView(),
-				sValue = oView.byId("searchField").getValue(),
-				oFilter = new Filter("LastName", FilterOperator.Contains, sValue);
+			const oView = this.getView();
+			const sValue = oView.byId("searchField").getValue();
+			const Filter = new Filter("LastName", FilterOperator.Contains, sValue);
 
 			oView.byId("peopleList").getBinding("items").filter(oFilter, FilterType.Application);
 		},
@@ -131,8 +131,8 @@ sap.ui.define([
 		},
 
 		onResetDataSource : function () {
-			var oModel = this.getView().getModel(),
-				oOperation = oModel.bindContext("/ResetDataSource(...)");
+			const oModel = this.getView().getModel();
+			const oOperation = oModel.bindContext("/ResetDataSource(...)");
 
 			oOperation.invoke().then(function () {
 					oModel.refresh();
@@ -145,11 +145,11 @@ sap.ui.define([
 
 		
 		onSort : function () {
-			var oView = this.getView(),
-				aStates = [undefined, "asc", "desc"],
-				aStateTextIds = ["sortNone", "sortAscending", "sortDescending"],
-				sMessage,
-				iOrder = oView.getModel("appView").getProperty("/order");
+			const oView = this.getView();
+			const aStates = [undefined, "asc", "desc"];
+			const aStateTextIds = ["sortNone", "sortAscending", "sortDescending"];
+				
+				const iOrder = oView.getModel("appView").getProperty("/order");
 
 			iOrder = (iOrder + 1) % aStates.length;
 			var sOrder = aStates[iOrder];
@@ -157,21 +157,21 @@ sap.ui.define([
 			oView.getModel("appView").setProperty("/order", iOrder);
 			oView.byId("peopleList").getBinding("items").sort(sOrder && new Sorter("LastName", sOrder === "desc"));
 
-			sMessage = this._getText("sortMessage", [this._getText(aStateTextIds[iOrder])]);
+			const sMessage = this._getText("sortMessage", [this._getText(aStateTextIds[iOrder])]);
 			MessageToast.show(sMessage);
 			},
 
 			onMessageBindingChange : function (oEvent) {
-				var aContexts = oEvent.getSource().getContexts(),
-					aMessages,
-					bMessageOpen = false;
+				const aContexts = oEvent.getSource().getContexts();
+					
+					const	bMessageOpen = false;
 	
 				if (bMessageOpen || !aContexts.length) {
 					return;
 				}
 	
 				// Extract and remove the technical messages
-				aMessages = aContexts.map(function (oContext) {
+				const aMessages = aContexts.map(function (oContext) {
 					return oContext.getObject();
 				});
 				sap.ui.getCore().getMessageManager().removeMessages(aMessages);
@@ -209,7 +209,7 @@ sap.ui.define([
 			oModel.setProperty("/hasUIChanges", bHasUIChanges);
 		},
 		_setBusy : function (bIsBusy) {
-			var oModel = this.getView().getModel("appView");
+			const oModel = this.getView().getModel("appView");
 			oModel.setProperty("/busy", bIsBusy);
 		},
 
@@ -219,16 +219,16 @@ sap.ui.define([
          * @param {object} [oUserContext] - the current user context
          */
 		 _setDetailArea : function (oUserContext) {
-            var oDetailArea = this.byId("detailArea"),
-                oLayout = this.byId("defaultLayout"),
-                oOldContext,
-                oSearchField = this.byId("searchField");
+            const oDetailArea = this.byId("detailArea");
+			const oLayout = this.byId("defaultLayout");
+          
+			const oSearchField = this.byId("searchField");
  
             if (!oDetailArea) {
                 return; // do nothing when running within view destruction
             }
  
-            oOldContext = oDetailArea.getBindingContext();
+			const oOldContext = oDetailArea.getBindingContext();
             if (oOldContext) {
                 oOldContext.setKeepAlive(false);
             }
